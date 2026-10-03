@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planific Matellen - Poliedros e Planificação 3D</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- MathJax Configuration for TeX rendering -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            scrollbar-width: thin;
+            scrollbar-color: #3b82f6 #1e293b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #60a5fa;
+        }
+
+        #viewport-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 320px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.88);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            transition: all 0.2s ease;
+        }
+        .custom-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #60a5fa;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <!-- HEADER NAVBAR -->
+    <header class="h-16 border-b border-slate-800 bg-slate-950/90 backdrop-blur px-4 sm:px-6 flex items-center justify-between z-30 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-shapes text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">Planific Matellen</h1>
+                <p class="text-[11px] text-slate-400">Poliedros Convexos e Planificação 3D</p>
+            </div>
+        </div>
+
+        <!-- MODE NAVIGATION TAB BUTTONS -->
+        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <button id="btn-tab-lab" onclick="switchTab('lab')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all bg-blue-600 text-white shadow">
+                <i class="fa-solid fa-cube mr-1.5"></i> Laboratório 3D
+            </button>
+            <button id="btn-tab-quiz" onclick="switchTab('quiz')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">
+                <i class="fa-solid fa-graduation-cap mr-1.5"></i> Quiz & Desafios
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+        <!-- LEFT SIDEBAR: Solid Selector & Controls -->
+        <aside id="sidebar-left" class="w-full md:w-80 border-r border-slate-800 bg-slate-950/70 flex flex-col flex-shrink-0 z-20 max-h-[35vh] md:max-h-none overflow-y-auto">
+            <div class="p-4 border-b border-slate-800">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-blue-400 mb-3">Escolha o Poliedro</h2>
+                
+                <div class="space-y-4">
+                    <!-- PLATONIC SOLIDS -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Sólidos de Platão</span>
+                            <span class="text-[9px] bg-blue-500/20 text-blue-400 font-bold px-1.5 py-0.5 rounded border border-blue-500/30">5 Sólidos</span>
+                        </div>
+                        <ul class="space-y-1.5">
+                            <li>
+                                <button onclick="selectSolid('tetrahedron')" id="btn-tetrahedron" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                        <span class="font-medium">Tetraedro</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V4 A6 F4</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('cube')" id="btn-cube" class="solid-btn w-full p-2 rounded-lg border border-blue-500 bg-blue-600/20 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                        <span class="font-medium">Cubo / Hexaedro</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V8 A12 F6</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('octahedron')" id="btn-octahedron" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                                        <span class="font-medium">Octaedro</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V6 A12 F8</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('dodecahedron')" id="btn-dodecahedron" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                                        <span class="font-medium">Dodecaedro</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V20 A30 F12</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('icosahedron')" id="btn-icosahedron" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                                        <span class="font-medium">Icosaedro</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V12 A30 F20</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- PRISMS CATEGORY -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Prismas</span>
+                            <span class="text-[9px] bg-indigo-500/20 text-indigo-400 font-bold px-1.5 py-0.5 rounded border border-indigo-500/30">4 Sólidos</span>
+                        </div>
+                        <ul class="space-y-1.5">
+                            <li>
+                                <button onclick="selectSolid('prism')" id="btn-prism" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+                                        <span class="font-medium">Prisma Triangular</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V6 A9 F5</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('cuboid')" id="btn-cuboid" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                                        <span class="font-medium">Paralelepípedo</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V8 A12 F6</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('prism_pentagonal')" id="btn-prism_pentagonal" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                        <span class="font-medium">Prisma Pentagonal</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V10 A15 F7</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('prism_hexagonal')" id="btn-prism_hexagonal" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                                        <span class="font-medium">Prisma Hexagonal</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V12 A18 F8</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- PYRAMIDS CATEGORY -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Pirâmides</span>
+                            <span class="text-[9px] bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">4 Sólidos</span>
+                        </div>
+                        <ul class="space-y-1.5">
+                            <li>
+                                <button onclick="selectSolid('pyramid_triangular')" id="btn-pyramid_triangular" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-orange-400"></span>
+                                        <span class="font-medium">Pirâmide Triangular</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V4 A6 F4</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('pyramid')" id="btn-pyramid" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                                        <span class="font-medium">Pirâmide Quad.</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V5 A8 F5</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('pyramid_pentagonal')" id="btn-pyramid_pentagonal" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                                        <span class="font-medium">Pirâmide Pentagonal</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V6 A10 F6</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="selectSolid('pyramid_hexagonal')" id="btn-pyramid_hexagonal" class="solid-btn w-full p-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-left transition text-xs flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                                        <span class="font-medium">Pirâmide Hexagonal</span>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-slate-400">V7 A12 F7</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DYNAMIC PARAMETERS CONTROL -->
+            <div class="p-4 space-y-4 border-b border-slate-800">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-blue-400">Dimensões do Sólido</h2>
+
+                <div id="param-a-container">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300" id="param-a-label">Aresta (a):</span>
+                        <span id="val-a" class="font-mono text-blue-400">2.00 cm</span>
+                    </div>
+                    <input type="range" id="slider-a" min="0.8" max="4.0" step="0.1" value="2.0" oninput="updateSolidParameters()" class="w-full custom-slider bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div id="param-w-container" class="hidden">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Largura (w):</span>
+                        <span id="val-w" class="font-mono text-blue-400">2.00 cm</span>
+                    </div>
+                    <input type="range" id="slider-w" min="0.8" max="4.0" step="0.1" value="2.0" oninput="updateSolidParameters()" class="w-full custom-slider bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div id="param-h-container" class="hidden">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">Altura (h):</span>
+                        <span id="val-h" class="font-mono text-blue-400">2.50 cm</span>
+                    </div>
+                    <input type="range" id="slider-h" min="0.8" max="4.0" step="0.1" value="2.5" oninput="updateSolidParameters()" class="w-full custom-slider bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+
+            <!-- VISUAL STYLING CONTROLS -->
+            <div class="p-4 space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-blue-400">Aparência Didática</h2>
+
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-300"><i class="fa-solid fa-shapes text-blue-400 w-4"></i> Exibir Faces</span>
+                    <input type="checkbox" id="chk-faces" checked onchange="updateVisualStyles()" class="w-4 h-4 rounded accent-blue-500 cursor-pointer">
+                </div>
+
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-300"><i class="fa-solid fa-vector-square text-emerald-400 w-4"></i> Exibir Arestas</span>
+                    <input type="checkbox" id="chk-edges" checked onchange="updateVisualStyles()" class="w-4 h-4 rounded accent-emerald-500 cursor-pointer">
+                </div>
+
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-300"><i class="fa-solid fa-circle text-amber-400 w-4"></i> Exibir Vértices</span>
+                    <input type="checkbox" id="chk-vertices" checked onchange="updateVisualStyles()" class="w-4 h-4 rounded accent-amber-500 cursor-pointer">
+                </div>
+
+                <div class="flex items-center justify-between text-xs pt-2">
+                    <span class="text-slate-300">Cor Principal:</span>
+                    <input type="color" id="picker-color" value="#3b82f6" onchange="updateVisualStyles()" class="w-7 h-7 rounded border-0 bg-transparent cursor-pointer">
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER 3D CANVAS & BOTTOM INFORMATION PANEL -->
+        <section id="tab-content-lab" class="flex-1 flex flex-col h-full overflow-hidden relative">
+
+            <!-- 3D VIEWPORT CONTAINER -->
+            <div id="viewport-wrapper">
+                <!-- TOP OVERLAY: PLANIFICAÇÃO CONTROLS -->
+                <div class="absolute top-4 left-4 right-4 z-10 flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl glass-panel shadow-2xl border border-slate-700/60">
+                    <div class="flex items-center space-x-3 w-full sm:w-auto">
+                        <i class="fa-solid fa-folder-open text-blue-400 text-lg"></i>
+                        <div>
+                            <p class="text-xs font-bold text-slate-200">Planificação Gradual</p>
+                            <p class="text-[10px] text-slate-400">0% (3D Fechado) → 100% (2D Plano)</p>
+                        </div>
+                    </div>
+
+                    <!-- PROGRESS SLIDER -->
+                    <div class="flex items-center space-x-3 w-full sm:w-80">
+                        <span class="text-xs font-mono font-bold text-blue-400 w-10 text-right" id="label-unfold-pct">0%</span>
+                        <input type="range" id="slider-unfold" min="0" max="100" value="0" oninput="onUnfoldSliderChange(this.value)" class="w-full custom-slider bg-slate-800 h-2 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="resetCamera()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition border border-slate-700">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> Câmera
+                        </button>
+                    </div>
+                </div>
+
+                <!-- THREE.JS 3D CANVAS -->
+                <div id="canvas-container"></div>
+            </div>
+
+            <!-- BOTTOM PANEL: SOLID INFO, EULER FORMULA & AREA/VOLUME CALCULATIONS -->
+            <div id="panel-bottom" class="border-t border-slate-800 bg-slate-950/90 backdrop-blur p-4 space-y-3 z-20 flex-shrink-0 max-h-[40vh] overflow-y-auto">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h2 class="text-sm font-bold text-blue-400" id="solid-title">Cubo (Hexaedro Regular)</h2>
+                            <span id="euler-badge" class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                                Euler Válido ✓
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5" id="solid-description">Poliedro de Platão com 6 faces quadradas idênticas.</p>
+                    </div>
+
+                    <!-- EULER'S FORMULA DISPLAY -->
+                    <div class="flex items-center space-x-4 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs font-mono">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Euler:</span>
+                        <span class="text-blue-400 font-bold">V - A + F = 2</span>
+                        <div class="h-4 w-px bg-slate-700"></div>
+                        <div><span class="text-slate-400">V:</span> <span id="euler-v" class="font-bold text-amber-400">8</span></div>
+                        <div><span class="text-slate-400">A:</span> <span id="euler-a" class="font-bold text-emerald-400">12</span></div>
+                        <div><span class="text-slate-400">F:</span> <span id="euler-f" class="font-bold text-blue-400">6</span></div>
+                    </div>
+                </div>
+
+                <!-- STEP-BY-STEP MATHEMATICAL CALCULATIONS GRID -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex flex-col justify-center">
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Área de 1 Face ($A_f$)</span>
+                        <div id="math-face-area" class="font-mono text-slate-200 py-0.5 min-h-[24px]"></div>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex flex-col justify-center">
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Área Total ($A_t$)</span>
+                        <div id="math-total-area" class="font-mono text-slate-200 py-0.5 min-h-[24px]"></div>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex flex-col justify-center">
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Volume ($V$)</span>
+                        <div id="math-volume" class="font-mono text-slate-200 py-0.5 min-h-[24px]"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB CONTENT: DESAFIOS & QUIZ -->
+        <section id="tab-content-quiz" class="hidden flex-1 p-6 overflow-y-auto bg-slate-900">
+            <div class="max-w-2xl mx-auto space-y-6">
+                <div class="p-6 rounded-2xl glass-panel border border-slate-800">
+                    <span class="text-xs font-bold text-blue-400 uppercase tracking-wider block mb-1">Desafio Prático - Planific Matellen</span>
+                    <h2 class="text-xl font-bold mb-2 text-slate-100" id="quiz-question-title">Pergunta 1</h2>
+                    <p class="text-sm text-slate-300 leading-relaxed mb-6" id="quiz-question-text">
+                        Qual é o valor do número de vértices de um Icosaedro Regular que possui 20 faces triangulares e 30 arestas?
+                    </p>
+
+                    <div id="quiz-options" class="space-y-3">
+                        <!-- Options populated dynamically -->
+                    </div>
+
+                    <div id="quiz-feedback" class="hidden mt-4 p-4 rounded-xl text-sm font-medium"></div>
+
+                    <div class="mt-6 flex justify-between items-center">
+                        <span class="text-xs text-slate-400" id="quiz-progress">Questão 1 de 5</span>
+                        <button id="btn-next-quiz" onclick="nextQuizQuestion()" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-lg shadow-blue-500/20">
+                            Próxima Questão <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        let scene, camera, renderer, controls;
+        let activeSolidMesh = null;
+        let polyhedronFaces = [];
+        let faceUnfoldTree = [];
+        let faceRenderObjects = [];
+        let vertexRenderObjects = [];
+        let currentMeshMaterials = [];
+        let currentSolidKey = 'cube';
+        let unfoldProgress = 0;
+        let paramA = 2.0;
+        let paramW = 2.0;
+        let paramH = 2.5;
+        let showFaces = true;
+        let showEdges = true;
+        let showVertices = true;
+        let primaryColorHex = '#3b82f6';
+
+        // POLYHEDRAL DATASET
+        const SOLIDS_DATA = {
+            tetrahedron: {
+                name: 'Tetraedro Regular',
+                desc: 'Sólido de Platão com 4 faces triangulares equiláteras.',
+                v: 4, a: 6, f: 4, platonic: true
+            },
+            cube: {
+                name: 'Cubo (Hexaedro Regular)',
+                desc: 'Sólido de Platão com 6 faces quadradas idênticas.',
+                v: 8, a: 12, f: 6, platonic: true
+            },
+            octahedron: {
+                name: 'Octaedro Regular',
+                desc: 'Sólido de Platão com 8 faces triangulares equiláteras.',
+                v: 6, a: 12, f: 8, platonic: true
+            },
+            dodecahedron: {
+                name: 'Dodecaedro Regular',
+                desc: 'Composto por 12 faces pentagonais regulares.',
+                v: 20, a: 30, f: 12, platonic: true
+            },
+            icosahedron: {
+                name: 'Icosaedro Regular',
+                desc: 'Sólido de Platão com 20 faces triangulares equiláteras.',
+                v: 12, a: 30, f: 20, platonic: true
+            },
+            cuboid: {
+                name: 'Paralelepípedo Retângulo',
+                desc: 'Poliedro com 6 faces retangulares opostas congruentes.',
+                v: 8, a: 12, f: 6, platonic: false
+            },
+            prism: {
+                name: 'Prisma Triangular Regular',
+                desc: 'Poliedro com 2 bases triangulares paralelas e 3 faces retangulares.',
+                v: 6, a: 9, f: 5, platonic: false
+            },
+            prism_pentagonal: {
+                name: 'Prisma Pentagonal Regular',
+                desc: 'Poliedro com 2 bases pentagonais congruentes e 5 faces retangulares.',
+                v: 10, a: 15, f: 7, platonic: false
+            },
+            prism_hexagonal: {
+                name: 'Prisma Hexagonal Regular',
+                desc: 'Poliedro com 2 bases hexagonais congruentes e 6 faces retangulares.',
+                v: 12, a: 18, f: 8, platonic: false
+            },
+            pyramid_triangular: {
+                name: 'Pirâmide Triangular Regular',
+                desc: 'Poliedro com 1 base triangular e 3 faces laterais triangulares congruentes.',
+                v: 4, a: 6, f: 4, platonic: false
+            },
+            pyramid: {
+                name: 'Pirâmide Quadrangular',
+                desc: 'Poliedro com 1 base quadrada e 4 faces laterais triangulares.',
+                v: 5, a: 8, f: 5, platonic: false
+            },
+            pyramid_pentagonal: {
+                name: 'Pirâmide Pentagonal Regular',
+                desc: 'Poliedro com 1 base pentagonal regular e 5 faces laterais triangulares.',
+                v: 6, a: 10, f: 6, platonic: false
+            },
+            pyramid_hexagonal: {
+                name: 'Pirâmide Hexagonal Regular',
+                desc: 'Poliedro com 1 base hexagonal regular e 6 faces laterais triangulares.',
+                v: 7, a: 12, f: 7, platonic: false
+            }
+        };
+
+        const QUIZ_QUESTIONS = [
+            {
+                q: "Usando a Relação de Euler ($V - A + F = 2$), qual o número de vértices ($V$) de um poliedro com 20 faces e 30 arestas?",
+                options: ["10", "12", "14", "8"],
+                correct: 1,
+                exp: "Aplica-se $V - 30 + 20 = 2 \\Rightarrow V = 12$."
+            },
+            {
+                q: "Quantos Sólidos de Platão existem ao todo?",
+                options: ["3", "4", "5", "6"],
+                correct: 2,
+                exp: "Existem exatamente 5 Sólidos de Platão: Tetraedro, Cubo, Octaedro, Dodecaedro e Icosaedro."
+            },
+            {
+                q: "Qual é a fórmula da Área Total ($A_t$) de um Cubo de aresta $a$?",
+                options: ["$A_t = 4a^2$", "$A_t = 6a^2$", "$A_t = a^3$", "$A_t = 12a$"],
+                correct: 1,
+                exp: "Um cubo possui 6 faces quadradas de área $a^2$, logo a área total é $6a^2$."
+            },
+            {
+                q: "Um prisma hexagonal regular possui quantas faces no total?",
+                options: ["6", "7", "8", "12"],
+                correct: 2,
+                exp: "Possui 2 bases hexagonais + 6 faces laterais retangulares = 8 faces."
+            },
+            {
+                q: "Uma pirâmide quadrangular regular possui quantas arestas?",
+                options: ["4", "5", "8", "12"],
+                correct: 2,
+                exp: "Possui 4 arestas na base e 4 arestas laterais, totalizando 8 arestas."
+            }
+        ];
+
+        let currentQuizIndex = 0;
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth || window.innerWidth;
+            const height = container.clientHeight || (window.innerHeight * 0.6);
+            
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(0, 3, 7);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // Setup Orbit Controls
+            if (typeof THREE.OrbitControls === 'function') {
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+            } else if (THREE.OrbitControls) {
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+            }
+            if (controls) {
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+            }
+
+            // Ambient & Directional Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.9);
+            dirLight1.position.set(5, 10, 7);
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0x3b82f6, 0.5);
+            dirLight2.position.set(-5, -5, -5);
+            scene.add(dirLight2);
+
+            window.addEventListener('resize', onWindowResize);
+            
+            selectSolid('cube');
+            renderQuizQuestion();
+            animate();
+
+            // Trigger sizing re-check
+            setTimeout(onWindowResize, 100);
+        }
+
+        function buildGeometry(key) {
+            let geom;
+            const a = paramA;
+            const w = paramW;
+            const h = paramH;
+
+            switch(key) {
+                case 'tetrahedron': geom = new THREE.TetrahedronGeometry(a); break;
+                case 'cube': geom = new THREE.BoxGeometry(a, a, a); break;
+                case 'octahedron': geom = new THREE.OctahedronGeometry(a); break;
+                case 'dodecahedron': geom = new THREE.DodecahedronGeometry(a); break;
+                case 'icosahedron': geom = new THREE.IcosahedronGeometry(a); break;
+                case 'cuboid': geom = new THREE.BoxGeometry(w, h, a); break;
+                case 'prism': geom = new THREE.CylinderGeometry(a, a, h, 3); break;
+                case 'prism_pentagonal': geom = new THREE.CylinderGeometry(a, a, h, 5); break;
+                case 'prism_hexagonal': geom = new THREE.CylinderGeometry(a, a, h, 6); break;
+                case 'pyramid_triangular': geom = new THREE.ConeGeometry(a, h, 3); break;
+                case 'pyramid': geom = new THREE.ConeGeometry(a, h, 4); break;
+                case 'pyramid_pentagonal': geom = new THREE.ConeGeometry(a, h, 5); break;
+                case 'pyramid_hexagonal': geom = new THREE.ConeGeometry(a, h, 6); break;
+                default: geom = new THREE.BoxGeometry(a, a, a);
+            }
+            return geom;
+        }
+
+        function selectSolid(key) {
+            currentSolidKey = key;
+            document.querySelectorAll('.solid-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'bg-blue-600/20');
+                btn.classList.add('border-slate-800', 'bg-slate-900/80');
+            });
+            const activeBtn = document.getElementById(`btn-${key}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('border-slate-800', 'bg-slate-900/80');
+                activeBtn.classList.add('border-blue-500', 'bg-blue-600/20');
+            }
+
+            // Adjust parameter visibility
+            const isCuboid = key === 'cuboid';
+            const isPrismOrPyramid = key.includes('prism') || key.includes('pyramid');
+            
+            document.getElementById('param-w-container').classList.toggle('hidden', !isCuboid);
+            document.getElementById('param-h-container').classList.toggle('hidden', !isCuboid && !isPrismOrPyramid);
+
+            update3DMesh();
+            updateMathInfo();
+        }
+
+        // Gera uma chave estável para identificar vértices e arestas coincidentes.
+        function pointKey(point, precision = 5) {
+            const scale = Math.pow(10, precision);
+            const x = Math.round(point.x * scale) / scale;
+            const y = Math.round(point.y * scale) / scale;
+            const z = Math.round(point.z * scale) / scale;
+            return `${x},${y},${z}`;
+        }
+
+        function edgeKey(a, b) {
+            const ka = pointKey(a);
+            const kb = pointKey(b);
+            return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+        }
+
+        // Converte os triângulos internos da geometria do Three.js em faces planas.
+        // O fecho convexo remove vértices auxiliares (por exemplo, o centro de uma tampa).
+        function extractPolyhedronFaces(geometry) {
+            const position = geometry.attributes.position;
+            const index = geometry.index;
+            const triangleCount = index ? index.count / 3 : position.count / 3;
+            const clusters = [];
+            const planeTolerance = 1e-4;
+
+            for (let t = 0; t < triangleCount; t++) {
+                const ia = index ? index.getX(t * 3) : t * 3;
+                const ib = index ? index.getX(t * 3 + 1) : t * 3 + 1;
+                const ic = index ? index.getX(t * 3 + 2) : t * 3 + 2;
+                const a = new THREE.Vector3().fromBufferAttribute(position, ia);
+                const b = new THREE.Vector3().fromBufferAttribute(position, ib);
+                const c = new THREE.Vector3().fromBufferAttribute(position, ic);
+                const normal = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
+                if (normal.lengthSq() < 1e-12) continue;
+                normal.normalize();
+                const planeOffset = -normal.dot(a);
+
+                let cluster = clusters.find(item =>
+                    item.normal.dot(normal) > 0.9999 &&
+                    Math.abs(item.offset - planeOffset) < planeTolerance
+                );
+                if (!cluster) {
+                    cluster = { normal: normal.clone(), offset: planeOffset, points: new Map() };
+                    clusters.push(cluster);
+                }
+                [a, b, c].forEach(point => cluster.points.set(pointKey(point), point.clone()));
+            }
+
+            const faces = [];
+            for (const cluster of clusters) {
+                const points = Array.from(cluster.points.values());
+                if (points.length < 3) continue;
+
+                const center = points.reduce((sum, p) => sum.add(p), new THREE.Vector3()).multiplyScalar(1 / points.length);
+                const u = points[0].clone().sub(center).normalize();
+                const v = new THREE.Vector3().crossVectors(cluster.normal, u).normalize();
+                const projected = points.map(point => ({
+                    point,
+                    x: point.clone().sub(center).dot(u),
+                    y: point.clone().sub(center).dot(v)
+                })).sort((p, q) => p.x - q.x || p.y - q.y);
+
+                const cross2 = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+                const lower = [];
+                for (const p of projected) {
+                    while (lower.length >= 2 && cross2(lower[lower.length - 2], lower[lower.length - 1], p) <= 1e-9) lower.pop();
+                    lower.push(p);
+                }
+                const upper = [];
+                for (let i = projected.length - 1; i >= 0; i--) {
+                    const p = projected[i];
+                    while (upper.length >= 2 && cross2(upper[upper.length - 2], upper[upper.length - 1], p) <= 1e-9) upper.pop();
+                    upper.push(p);
+                }
+                const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
+                if (hull.length < 3) continue;
+
+                const vertices = hull.map(item => item.point);
+                const faceNormal = new THREE.Vector3().crossVectors(
+                    vertices[1].clone().sub(vertices[0]),
+                    vertices[2].clone().sub(vertices[0])
+                ).normalize();
+                if (faceNormal.dot(cluster.normal) < 0) vertices.reverse();
+                const faceCenter = vertices.reduce((sum, p) => sum.add(p), new THREE.Vector3()).multiplyScalar(1 / vertices.length);
+                faces.push({ vertices, normal: cluster.normal.clone(), center: faceCenter });
+            }
+            return faces;
+        }
+
+        // Cria uma árvore de dobradiças. Cada face é ligada a uma vizinha por uma aresta.
+        function createUnfoldTree(faces) {
+            const edgeMap = new Map();
+            faces.forEach((face, faceIndex) => {
+                for (let i = 0; i < face.vertices.length; i++) {
+                    const a = face.vertices[i];
+                    const b = face.vertices[(i + 1) % face.vertices.length];
+                    const key = edgeKey(a, b);
+                    if (!edgeMap.has(key)) edgeMap.set(key, []);
+                    edgeMap.get(key).push({ faceIndex, a: a.clone(), b: b.clone() });
+                }
+            });
+
+            const adjacency = faces.map(() => []);
+            edgeMap.forEach((incidences, key) => {
+                if (incidences.length === 2) {
+                    const [first, second] = incidences;
+                    adjacency[first.faceIndex].push({ faceIndex: second.faceIndex, key, a: first.a, b: first.b });
+                    adjacency[second.faceIndex].push({ faceIndex: first.faceIndex, key, a: first.a, b: first.b });
+                }
+            });
+
+            const tree = faces.map(() => ({ parent: -1, hingeA: null, hingeB: null, children: [] }));
+            if (!faces.length) return tree;
+            const visited = new Set([0]);
+            const queue = [0];
+            while (queue.length) {
+                const parentIndex = queue.shift();
+                for (const link of adjacency[parentIndex]) {
+                    if (visited.has(link.faceIndex)) continue;
+                    visited.add(link.faceIndex);
+                    tree[link.faceIndex].parent = parentIndex;
+                    tree[link.faceIndex].hingeA = link.a.clone();
+                    tree[link.faceIndex].hingeB = link.b.clone();
+                    tree[parentIndex].children.push(link.faceIndex);
+                    queue.push(link.faceIndex);
+                }
+            }
+            return tree;
+        }
+
+        function createPolygonGeometry(vertices) {
+            const values = [];
+            for (let i = 1; i < vertices.length - 1; i++) {
+                values.push(
+                    vertices[0].x, vertices[0].y, vertices[0].z,
+                    vertices[i].x, vertices[i].y, vertices[i].z,
+                    vertices[i + 1].x, vertices[i + 1].y, vertices[i + 1].z
+                );
+            }
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(values, 3));
+            geometry.computeVertexNormals();
+            return geometry;
+        }
+
+        function update3DMesh() {
+            if (activeSolidMesh) {
+                scene.remove(activeSolidMesh);
+                const sharedSphere = activeSolidMesh.userData.sharedSphereGeometry;
+                activeSolidMesh.traverse(object => {
+                    if (object.geometry && object.geometry !== sharedSphere) object.geometry.dispose();
+                });
+                if (sharedSphere) sharedSphere.dispose();
+                currentMeshMaterials.forEach(material => material.dispose());
+            }
+
+            const sourceGeometry = buildGeometry(currentSolidKey);
+            polyhedronFaces = extractPolyhedronFaces(sourceGeometry);
+            sourceGeometry.dispose();
+            faceUnfoldTree = createUnfoldTree(polyhedronFaces);
+            activeSolidMesh = new THREE.Group();
+            faceRenderObjects = [];
+            vertexRenderObjects = [];
+            currentMeshMaterials = [];
+
+            const faceMaterial = new THREE.MeshStandardMaterial({
+                color: primaryColorHex,
+                roughness: 0.3,
+                metalness: 0.2,
+                transparent: true,
+                opacity: showFaces ? 0.85 : 0.0,
+                side: THREE.DoubleSide
+            });
+            currentMeshMaterials.push(faceMaterial);
+
+            const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+            currentMeshMaterials.push(edgeMaterial);
+            const vertexMaterial = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+            currentMeshMaterials.push(vertexMaterial);
+            const sphereGeometry = new THREE.SphereGeometry(0.06, 12, 12);
+
+            polyhedronFaces.forEach((face, faceIndex) => {
+                const faceMesh = new THREE.Mesh(createPolygonGeometry(face.vertices), faceMaterial);
+                const edgeGeometry = new THREE.BufferGeometry().setFromPoints(face.vertices);
+                const edgeLine = new THREE.LineLoop(edgeGeometry, edgeMaterial);
+                faceMesh.visible = showFaces;
+                edgeLine.visible = showEdges;
+                activeSolidMesh.add(faceMesh, edgeLine);
+                faceRenderObjects.push({ faceIndex, mesh: faceMesh, edge: edgeLine });
+
+                if (showVertices) {
+                    // Um marcador por canto de face permite que vértices cortados no net
+                    // apareçam em suas posições distintas após a planificação.
+                    face.vertices.forEach(point => {
+                        const marker = new THREE.Mesh(sphereGeometry, vertexMaterial);
+                        marker.position.copy(point);
+                        activeSolidMesh.add(marker);
+                        vertexRenderObjects.push({ faceIndex, point: point.clone(), marker });
+                    });
+                }
+            });
+
+            // A esfera é compartilhada pelos marcadores e descartada apenas ao recriar o sólido.
+            activeSolidMesh.userData.sharedSphereGeometry = sphereGeometry;
+            scene.add(activeSolidMesh);
+            onUnfoldSliderChange(unfoldProgress);
+        }
+
+        function updateSolidParameters() {
+            paramA = parseFloat(document.getElementById('slider-a').value);
+            paramW = parseFloat(document.getElementById('slider-w').value);
+            paramH = parseFloat(document.getElementById('slider-h').value);
+
+            document.getElementById('val-a').textContent = paramA.toFixed(2) + " cm";
+            document.getElementById('val-w').textContent = paramW.toFixed(2) + " cm";
+            document.getElementById('val-h').textContent = paramH.toFixed(2) + " cm";
+
+            update3DMesh();
+            updateMathInfo();
+        }
+
+        function updateVisualStyles() {
+            showFaces = document.getElementById('chk-faces').checked;
+            showEdges = document.getElementById('chk-edges').checked;
+            showVertices = document.getElementById('chk-vertices').checked;
+            primaryColorHex = document.getElementById('picker-color').value;
+
+            update3DMesh();
+        }
+
+        function onUnfoldSliderChange(val) {
+            unfoldProgress = Math.max(0, Math.min(100, Number(val) || 0));
+            const label = document.getElementById('label-unfold-pct');
+            if (label) label.textContent = `${Math.round(unfoldProgress)}%`;
+            if (!activeSolidMesh || !polyhedronFaces.length) return;
+
+            const progress = unfoldProgress / 100;
+            const matrices = polyhedronFaces.map(() => new THREE.Matrix4());
+            matrices[0].identity();
+            const queue = [0];
+
+            while (queue.length) {
+                const parentIndex = queue.shift();
+                const parentMatrix = matrices[parentIndex];
+                for (const childIndex of faceUnfoldTree[parentIndex].children) {
+                    const node = faceUnfoldTree[childIndex];
+                    const p1 = node.hingeA.clone().applyMatrix4(parentMatrix);
+                    const p2 = node.hingeB.clone().applyMatrix4(parentMatrix);
+                    const axis = p2.clone().sub(p1).normalize();
+                    const parentNormal = polyhedronFaces[parentIndex].normal.clone().transformDirection(parentMatrix).normalize();
+                    const childNormal = polyhedronFaces[childIndex].normal.clone().transformDirection(parentMatrix).normalize();
+                    const signedAngle = Math.atan2(
+                        axis.dot(new THREE.Vector3().crossVectors(childNormal, parentNormal)),
+                        THREE.MathUtils.clamp(childNormal.dot(parentNormal), -1, 1)
+                    );
+                    const quaternion = new THREE.Quaternion().setFromAxisAngle(axis, signedAngle * progress);
+                    const rotation = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
+                    const aroundHinge = new THREE.Matrix4().makeTranslation(p1.x, p1.y, p1.z)
+                        .multiply(rotation)
+                        .multiply(new THREE.Matrix4().makeTranslation(-p1.x, -p1.y, -p1.z));
+                    matrices[childIndex].multiplyMatrices(aroundHinge, parentMatrix);
+                    queue.push(childIndex);
+                }
+            }
+
+            faceRenderObjects.forEach(item => {
+                item.mesh.matrixAutoUpdate = false;
+                item.edge.matrixAutoUpdate = false;
+                item.mesh.matrix.copy(matrices[item.faceIndex]);
+                item.edge.matrix.copy(matrices[item.faceIndex]);
+                item.mesh.matrixWorldNeedsUpdate = true;
+                item.edge.matrixWorldNeedsUpdate = true;
+            });
+            vertexRenderObjects.forEach(item => {
+                item.marker.position.copy(item.point).applyMatrix4(matrices[item.faceIndex]);
+            });
+        }
+
+        function updateMathInfo() {
+            const data = SOLIDS_DATA[currentSolidKey];
+            if (!data) return;
+
+            document.getElementById('solid-title').textContent = data.name;
+            document.getElementById('solid-description').textContent = data.desc;
+            document.getElementById('euler-v').textContent = data.v;
+            document.getElementById('euler-a').textContent = data.a;
+            document.getElementById('euler-f').textContent = data.f;
+
+            const a = paramA;
+            const w = paramW;
+            const h = paramH;
+            let areaFace = 0, areaTotal = 0, volume = 0;
+
+            if(currentSolidKey === 'cube') {
+                areaFace = a * a;
+                areaTotal = 6 * areaFace;
+                volume = Math.pow(a, 3);
+            } else if(currentSolidKey === 'tetrahedron') {
+                areaFace = (Math.sqrt(3)/4) * a * a;
+                areaTotal = 4 * areaFace;
+                volume = (Math.pow(a, 3)) / (6 * Math.sqrt(2));
+            } else if(currentSolidKey === 'cuboid') {
+                areaFace = w * h;
+                areaTotal = 2 * (w*h + w*a + h*a);
+                volume = w * h * a;
+            } else {
+                areaFace = a * a;
+                areaTotal = data.f * areaFace;
+                volume = (1/3) * areaTotal * a;
+            }
+
+            document.getElementById('math-face-area').innerHTML = `$A_f = ${areaFace.toFixed(2)}\\text{ cm}^2$`;
+            document.getElementById('math-total-area').innerHTML = `$A_t = ${areaTotal.toFixed(2)}\\text{ cm}^2$`;
+            document.getElementById('math-volume').innerHTML = `$V = ${volume.toFixed(2)}\\text{ cm}^3$`;
+
+            if(window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetPromise([
+                    document.getElementById('math-face-area'),
+                    document.getElementById('math-total-area'),
+                    document.getElementById('math-volume')
+                ]).catch((err) => console.log(err));
+            }
+        }
+
+        function switchTab(tab) {
+            if(tab === 'lab') {
+                document.getElementById('tab-content-lab').classList.remove('hidden');
+                document.getElementById('tab-content-quiz').classList.add('hidden');
+                document.getElementById('btn-tab-lab').classList.add('bg-blue-600', 'text-white');
+                document.getElementById('btn-tab-lab').classList.remove('text-slate-400');
+                document.getElementById('btn-tab-quiz').classList.remove('bg-blue-600', 'text-white');
+                document.getElementById('btn-tab-quiz').classList.add('text-slate-400');
+                setTimeout(onWindowResize, 50);
+            } else {
+                document.getElementById('tab-content-lab').classList.add('hidden');
+                document.getElementById('tab-content-quiz').classList.remove('hidden');
+                document.getElementById('btn-tab-quiz').classList.add('bg-blue-600', 'text-white');
+                document.getElementById('btn-tab-quiz').classList.remove('text-slate-400');
+                document.getElementById('btn-tab-lab').classList.remove('bg-blue-600', 'text-white');
+                document.getElementById('btn-tab-lab').classList.add('text-slate-400');
+            }
+        }
+
+        function renderQuizQuestion() {
+            const qData = QUIZ_QUESTIONS[currentQuizIndex];
+            document.getElementById('quiz-question-title').textContent = `Pergunta ${currentQuizIndex + 1}`;
+            document.getElementById('quiz-question-text').innerHTML = qData.q;
+            document.getElementById('quiz-progress').textContent = `Questão ${currentQuizIndex + 1} de ${QUIZ_QUESTIONS.length}`;
+
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+
+            const feedback = document.getElementById('quiz-feedback');
+            feedback.classList.add('hidden');
+
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3.5 rounded-xl border border-slate-800 bg-slate-900/90 hover:border-blue-500/50 transition flex items-center justify-between text-xs font-medium";
+                btn.innerHTML = `<span>${opt}</span><i class="fa-regular fa-circle text-slate-500"></i>`;
+                btn.onclick = () => checkQuizAnswer(idx);
+                optionsContainer.appendChild(btn);
+            });
+
+            if(window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetPromise([
+                    document.getElementById('quiz-question-text'),
+                    optionsContainer
+                ]).catch((err) => console.log(err));
+            }
+        }
+
+        function checkQuizAnswer(selectedIdx) {
+            const qData = QUIZ_QUESTIONS[currentQuizIndex];
+            const feedback = document.getElementById('quiz-feedback');
+            feedback.classList.remove('hidden');
+
+            if(selectedIdx === qData.correct) {
+                feedback.className = "mt-4 p-4 rounded-xl text-sm font-medium bg-emerald-500/20 border border-emerald-500/40 text-emerald-300";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i><strong>Correto!</strong> ${qData.exp}`;
+            } else {
+                feedback.className = "mt-4 p-4 rounded-xl text-sm font-medium bg-rose-500/20 border border-rose-500/40 text-rose-300";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2"></i><strong>Incorreto!</strong> ${qData.exp}`;
+            }
+            if(window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetPromise([feedback]).catch((err) => console.log(err));
+            }
+        }
+
+        function nextQuizQuestion() {
+            currentQuizIndex = (currentQuizIndex + 1) % QUIZ_QUESTIONS.length;
+            renderQuizQuestion();
+        }
+
+        function resetCamera() {
+            if (camera) camera.position.set(0, 3, 7);
+            if (controls) controls.reset();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            if (!container || !renderer || !camera) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            if (width > 0 && height > 0) {
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (controls) controls.update();
+            if (activeSolidMesh && unfoldProgress === 0) {
+                activeSolidMesh.rotation.y += 0.005;
+            }
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
