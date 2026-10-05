@@ -1,0 +1,18 @@
+{
+  "name": "Planific Matellen - Poliedros e 3D",
+  "short_name": "Planific",
+  "description": "Explore poliedros, fórmula de Euler e planificação 3D interativa.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3504/3504262.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
