@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0f172a">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planific Matellen - Poliedros e Planificação 3D</title>
@@ -366,11 +364,6 @@
                         <input type="range" id="slider-unfold" min="0" max="100" value="0" oninput="onUnfoldSliderChange(this.value)" class="w-full custom-slider bg-slate-800 h-2 rounded-lg appearance-none cursor-pointer">
                     </div>
 
-                    <div class="flex items-center space-x-2">
-                        <button onclick="resetCamera()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition border border-slate-700">
-                            <i class="fa-solid fa-rotate-left mr-1"></i> Câmera
-                        </button>
-                    </div>
                 </div>
 
                 <!-- THREE.JS 3D CANVAS -->
@@ -1090,10 +1083,5 @@
 
         window.onload = init;
     </script>
-    <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
-  }
-</script>
 </body>
 </html>
